@@ -9,6 +9,7 @@
     "start:prod": "node dist/main",
     "lint": "echo \"no lint configured\"",
     "pretest": "pnpm --filter @wizdaa/database db:generate",
+    "pretest:cov": "pnpm --filter @wizdaa/database db:generate",
     "test": "jest --config jest.config.cjs --runInBand",
     "test:cov": "jest --config jest.config.cjs --runInBand --coverage"
   },
@@ -27,7 +28,6 @@
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
     "@nestjs/schematics": "^10.2.3",
-    "@nestjs/schedule": "^4.1.2",
     "@nestjs/testing": "^10.4.15",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.14",

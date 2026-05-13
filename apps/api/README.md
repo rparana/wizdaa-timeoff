@@ -11,7 +11,7 @@ NestJS service exposing time-off operations, employee balances, HCM batch ingest
 
 ## Environment
 
-See root **`.env.example`**. Minimum for local runs:
+See root **`.env.example`** and **`apps/api/.env.example`**. Minimum for local runs:
 
 - `DATABASE_URL` — SQLite file URL used by Prisma.
 - `PORT` — HTTP port (default `3000`).

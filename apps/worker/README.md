@@ -9,7 +9,7 @@ NestJS app that **polls the outbox** and delivers `TIME_OFF_CREATED` (and relate
 
 ## Environment
 
-See root **`.env.example`**. Typical variables:
+See root **`.env.example`** and **`apps/worker/.env.example`**. Typical variables:
 
 | Variable                 | Role                                      |
 | ------------------------ | ----------------------------------------- |
@@ -23,10 +23,16 @@ See root **`.env.example`**. Typical variables:
 
 ## Scripts
 
-| Command       | Purpose     |
-| ------------- | ----------- |
-| `pnpm dev`    | Watch mode  |
-| `pnpm build`  | `dist` build |
-| `pnpm start`  | Run `dist`  |
+| Command         | Purpose                    |
+| --------------- | -------------------------- |
+| `pnpm dev`      | Watch mode                 |
+| `pnpm build`    | Production build to `dist` |
+| `pnpm start`    | Run compiled `dist`        |
+| `pnpm test`     | Jest (`test/` + `src/**/*.spec.ts`) |
+| `pnpm test:cov` | Jest + coverage report      |
+
+`pretest` runs `pnpm --filter @wizdaa/database db:generate` so the Prisma client is available before tests.
+
+Integration tests use **`apps/worker/integration.test.db`**; Jest `globalSetup` runs `prisma migrate deploy` from `packages/database` against that file (same migrations as the API).
 
 When running **next to the API** locally, use a **separate shell** and set `PORT=3002` if the API already uses `PORT=3000`.

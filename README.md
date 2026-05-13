@@ -52,15 +52,17 @@ pnpm db:generate
 
 ### Local database (without Docker)
 
-Point Prisma at a file URL (see `.env.example`):
+Environment samples live at **`.env.example`** (repo root) and **`apps/<name>/.env.example`** per service. Typical setup:
 
 ```bash
 cp .env.example .env
+# Optionally copy app-specific examples, e.g.:
+# cp apps/api/.env.example apps/api/.env
 # Edit DATABASE_URL if needed, then:
 pnpm db:migrate:deploy
 ```
 
-Run services in separate terminals (each needs `DATABASE_URL` and compatible `HCM_MOCK_URL`):
+Run services in separate terminals. Each process needs a consistent **`DATABASE_URL`** for API + worker, **`PORT`** per app (mock **3001**, API **3000**, worker **3002**), and the worker needs **`HCM_MOCK_URL`** pointing at the mock.
 
 ```bash
 # Terminal 1 — HCM mock (port 3001)
@@ -90,17 +92,24 @@ Compose uses a shared **named volume** for `file:/data/app.db` so API and worker
 
 ## Testing
 
-API tests use **Jest** with a dedicated integration SQLite file and **100% coverage** (statements/branches/functions/lines) on `apps/api/src/domain` and `apps/api/src/application` per `jest.config.cjs`.
+Root **`pnpm test`** runs **`turbo run test`** with **parallel** package tasks (`concurrency` in `turbo.json`). Each workspace that defines **`test`** runs it after its **`^build`** dependencies finish (so `@wizdaa/database` builds before `@wizdaa/api` / `@wizdaa/worker` tests).
+
+**`pnpm test:cov`** runs **`turbo run test:cov`** the same way (adds a root script; each app implements `test:cov`).
+
+**API** (`apps/api`): integration + unit tests against a dedicated SQLite file; **100%** statements/branches/functions/lines on `src/domain` and `src/application` (see `jest.config.cjs`).
+
+**Worker** (`apps/worker`): integration tests for outbox delivery (e.g. HCM failure → retry → success) using `apps/worker/integration.test.db` and the same Prisma migrations as the API.
 
 ```bash
-# Tests + coverage report (HTML + LCOV under apps/api/coverage/)
-pnpm --filter @wizdaa/api test:cov
-```
+# All workspace tests (Turbo, parallel across packages)
+pnpm test
 
-From `apps/api`:
-
-```bash
+# All workspace coverage tasks (where defined)
 pnpm test:cov
+
+# Per package
+pnpm --filter @wizdaa/api test:cov
+pnpm --filter @wizdaa/worker test:cov
 ```
 
 ## Repository layout

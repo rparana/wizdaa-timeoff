@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "declaration": false,
+    "sourceMap": true,
+    "outDir": "./dist-spec",
+    "rootDir": ".",
+    "noEmit": true,
+    "noImplicitAny": true,
+    "baseUrl": ".",
+    "types": ["jest", "node"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

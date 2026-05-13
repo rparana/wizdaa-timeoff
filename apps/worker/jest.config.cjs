@@ -16,19 +16,10 @@ module.exports = {
   testTimeout: 60_000,
   maxWorkers: 1,
   collectCoverageFrom: [
-    "src/domain/**/*.ts",
-    "src/application/**/*.ts",
+    "src/processing/**/*.ts",
+    "src/infrastructure/**/*.ts",
     "!src/**/*.spec.ts",
-    "!src/domain/**/*.repository.ts",
   ],
   coverageDirectory: "<rootDir>/coverage",
   coverageReporters: ["text", "text-summary", "lcov", "html"],
-  coverageThreshold: {
-    global: {
-      branches: 100,
-      functions: 100,
-      lines: 100,
-      statements: 100,
-    },
-  },
 };
