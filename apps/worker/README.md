@@ -33,6 +33,6 @@ See root **`.env.example`** and **`apps/worker/.env.example`**. Typical variable
 
 `pretest` runs `pnpm --filter @wizdaa/database db:generate` so the Prisma client is available before tests.
 
-Integration tests use **`apps/worker/integration.test.db`**; Jest `globalSetup` runs `prisma migrate deploy` from `packages/database` against that file (same migrations as the API).
+Integration tests use **`apps/worker/integration.test.db`**; Jest `globalSetup` runs `prisma migrate deploy` from `packages/database` against that file (same migrations as the API). **`pnpm test:cov`** in this package enforces **100%** coverage on `src/processing/**` and `src/infrastructure/**` (see `jest.config.cjs`).
 
 When running **next to the API** locally, use a **separate shell** and set `PORT=3002` if the API already uses `PORT=3000`.

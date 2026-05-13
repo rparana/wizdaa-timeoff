@@ -2,9 +2,14 @@
  * Balance persistence: `balanceDays` is a decimal string in SQLite. Every balance read,
  * comparison, and mutation MUST go through `Decimal.js` — never `Number()` or native
  * arithmetic on balance strings.
+ *
+ * SQLite notes:
+ * - `PRAGMA journal_mode=WAL` cannot run inside Prisma’s interactive transaction (SQLite
+ *   rejects it). WAL is enabled once per connection in {@link PrismaService.onModuleInit}.
+ * - This method uses a single interactive `$transaction` so balance read + updates are
+ *   serialized with other writers; `INSERT OR IGNORE` seeds the ledger row before read.
  */
 import { Injectable } from "@nestjs/common";
-import { randomUUID } from "crypto";
 import Decimal from "decimal.js";
 import { Prisma } from "@wizdaa/database";
 import { PrismaService } from "../database/prisma.service";
@@ -13,6 +18,11 @@ import { TimeOffRepository } from "../../domain/time-off/time-off.repository";
 import { isTimeOffStatus } from "../../domain/time-off/time-off-status";
 import { InsufficientBalanceError } from "../../domain/time-off/insufficient-balance.error";
 import { DEFAULT_PTO_DAYS } from "../../domain/time-off/time-off-balance.math";
+
+/** Deterministic idempotency key for outbox → HCM (`outbox_<TimeOffRequest.id>`). */
+export function outboxIdempotencyKeyForTimeOff(timeOffRequestId: string): string {
+  return `outbox_${timeOffRequestId}`;
+}
 
 @Injectable()
 export class PrismaTimeOffRepository implements TimeOffRepository {
@@ -38,19 +48,21 @@ export class PrismaTimeOffRepository implements TimeOffRepository {
           DEFAULT_PTO_DAYS.toString(),
         );
 
-        const locked = await tx.$queryRaw<
-          { employeeId: string; locationId: string; balanceDays: string }[]
-        >(Prisma.sql`
-          SELECT "employeeId", "locationId", "balanceDays"
-          FROM "EmployeeBalance"
-          WHERE "employeeId" = ${input.employeeId}
-            AND "locationId" = ${input.locationId}
-        `);
+        const row = await tx.employeeBalance.findUnique({
+          where: {
+            employeeId_locationId: {
+              employeeId: input.employeeId,
+              locationId: input.locationId,
+            },
+          },
+        });
 
-        const row = locked[0];
         if (!row) {
-          throw new Error(
-            `Missing employee balance row for employeeId=${input.employeeId} locationId=${input.locationId}`,
+          throw new InsufficientBalanceError(
+            input.employeeId,
+            input.locationId,
+            requested.toString(),
+            "0",
           );
         }
 
@@ -87,7 +99,7 @@ export class PrismaTimeOffRepository implements TimeOffRepository {
           },
         });
 
-        const idempotencyKey = randomUUID();
+        const idempotencyKey = outboxIdempotencyKeyForTimeOff(timeOff.id);
         const payload = {
           eventType: "TIME_OFF_CREATED",
           timeOffRequestId: timeOff.id,
@@ -113,7 +125,11 @@ export class PrismaTimeOffRepository implements TimeOffRepository {
 
         return this.toDomain(timeOff);
       },
-      { maxWait: 10_000, timeout: 30_000 },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        maxWait: 10_000,
+        timeout: 30_000,
+      },
     );
   }
 

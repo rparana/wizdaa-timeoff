@@ -1,6 +1,5 @@
 import { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
-import { randomUUID } from "crypto";
 import { AppModule } from "../src/app.module";
 import { PrismaService } from "../src/infrastructure/prisma.service";
 import { OutboxConsumerService } from "../src/processing/outbox-consumer.service";
@@ -54,7 +53,7 @@ describe("OutboxConsumerService resilience (integration)", () => {
       },
     });
 
-    const idempotencyKey = randomUUID();
+    const idempotencyKey = `outbox_${tor.id}`;
     const payload = {
       eventType: "TIME_OFF_CREATED",
       timeOffRequestId: tor.id,

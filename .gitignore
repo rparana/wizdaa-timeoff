@@ -1,4 +1,4 @@
-# Dependencies
+# Local specs / binaries (do not commit)
 node_modules
 .pnpm-store
 

@@ -15,11 +15,22 @@ Monorepo orchestration uses **Turborepo** and **pnpm** workspaces.
 
 ### Transactional outbox
 
-When a time-off request is accepted, the API persists the request, decrements the balance, and inserts an **outbox** row in the **same database transaction**. The worker delivers to HCM asynchronously. If HCM is down, rows stay **`PENDING`** with bounded retries until **`SENT`** or **`FAILED`**, without losing events.
+When a time-off request is accepted, the API persists the request, decrements the balance, and inserts an **outbox** row in the **same database transaction**. The worker delivers to HCM asynchronously. If HCM is down, rows stay **`PENDING`** with bounded retries until **`SENT`** or **`FAILED`**, without losing events. Delivery uses the **deterministic idempotency key** described below so retries stay safe at HCM.
 
 ### Concurrency and pessimistic-style locking (Prisma + SQLite)
 
-Balance updates run inside a **Prisma interactive transaction** so read–modify–write on `EmployeeBalance` is atomic. **Pessimistic locking** (`SELECT … FOR UPDATE`) is the usual pattern on PostgreSQL; on **SQLite** that syntax is invalid, so this codebase relies on **short exclusive transactions** and SQLite’s writer semantics instead, with **`PRAGMA journal_mode=WAL`** enabled at `PrismaService` startup to improve concurrent access. If you move to PostgreSQL, you can reintroduce `FOR UPDATE` on the balance row inside the same transaction for true row-level locks.
+Balance updates run inside a **Prisma interactive transaction** so read–modify–write on `EmployeeBalance` is atomic. **Pessimistic locking** (`SELECT … FOR UPDATE`) is the usual pattern on PostgreSQL; on **SQLite** that syntax is invalid, so this codebase relies on a **single serialized transaction** plus connection-level **`journal_mode=WAL`** instead.
+
+**How SQLite concurrency is handled in production:**
+
+1. **`PRAGMA journal_mode=WAL`** is executed **once per Prisma connection** in `PrismaService.onModuleInit` (see `apps/api` and `apps/worker`). WAL improves concurrent readers/writers. It **cannot** be toggled inside Prisma’s interactive transaction callback—SQLite rejects it—so WAL is **not** repeated per request.
+2. **`Prisma.TransactionIsolationLevel.Serializable`** is set on the time-off **`$transaction`** that debits balance and writes the outbox row (`PrismaTimeOffRepository`). That maps to SQLite’s strongest isolation for that unit of work, so concurrent writers serialize correctly for balance integrity.
+
+If you move to PostgreSQL, you can add `SELECT … FOR UPDATE` on the balance row inside the same transaction for explicit row locks.
+
+### Deterministic idempotency (`outbox_<TimeOffRequest.id>`)
+
+Outbox rows use a **stable idempotency key** derived from the aggregate id: **`outbox_${timeOffRequestId}`**. The same value is stored in the **`Outbox.idempotencyKey`** column, sent on the **`Idempotency-Key`** HTTP header for every worker retry, and embedded in the JSON **payload** (with **`balanceAfter`** and event fields). Downstream HCM (or the mock) can treat retries as one logical delivery and avoid duplicate side effects—critical for **resilient HCM integration** under network or 5xx failures.
 
 ### Decimal.js
 
@@ -96,9 +107,11 @@ Root **`pnpm test`** runs **`turbo run test`** with **parallel** package tasks (
 
 **`pnpm test:cov`** runs **`turbo run test:cov`** the same way (adds a root script; each app implements `test:cov`).
 
-**API** (`apps/api`): integration + unit tests against a dedicated SQLite file; **100%** statements/branches/functions/lines on `src/domain` and `src/application` (see `jest.config.cjs`).
+**Coverage (core layers):** Root **`pnpm test:cov`** runs Jest with coverage in each app. **`@wizdaa/api`** enforces **100%** statements, branches, functions, and lines on **`apps/api/src/domain`** and **`apps/api/src/application`** (`coverageThreshold` in `apps/api/jest.config.cjs`). **`@wizdaa/worker`** enforces **100%** on its instrumented core modules **`src/processing/**`** and **`src/infrastructure/**`** (`apps/worker/jest.config.cjs`). Open the HTML reports under each app’s **`coverage/`** directory for line-by-line detail.
 
-**Worker** (`apps/worker`): integration tests for outbox delivery (e.g. HCM failure → retry → success) using `apps/worker/integration.test.db` and the same Prisma migrations as the API.
+**API** (`apps/api`): integration + unit tests against a dedicated SQLite file (`apps/api/integration.test.db`).
+
+**Worker** (`apps/worker`): integration tests for outbox delivery plus unit tests for `OutboxConsumerService` branches (`apps/worker/integration.test.db`).
 
 ```bash
 # All workspace tests (Turbo, parallel across packages)
