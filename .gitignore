@@ -1,0 +1,52 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+dist-spec
+.next
+out
+build
+.turbo
+*.tsbuildinfo
+
+# Environment & secrets (keep examples tracked)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Logs & debug
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test & coverage
+coverage
+*.lcov
+
+# SQLite / local databases (Prisma, Docker bind-mounts, dev)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+dev.db
+app.db
+integration.test.db
+
+# OS & editors
+.DS_Store
+Thumbs.db
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# Tooling
+.vercel
+.cache
+*.swp
+*.swo
+*~

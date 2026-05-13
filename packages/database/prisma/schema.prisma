@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// balanceDays is stored as a decimal string for SQLite; all arithmetic must use Decimal.js in the API service layer — never parse as JS number for math.
+model EmployeeBalance {
+  employeeId  String
+  locationId  String
+  balanceDays String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@id([employeeId, locationId])
+}
+
+model TimeOffRequest {
+  id            String   @id @default(cuid())
+  employeeId    String
+  locationId    String
+  startDate     DateTime
+  endDate       DateTime
+  reason        String?
+  status        String   @default("PENDING")
+  daysRequested String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Outbox {
+  id               String    @id @default(cuid())
+  eventType        String
+  aggregateType    String
+  aggregateId      String
+  payload          String
+  idempotencyKey   String    @unique
+  status           String    @default("PENDING")
+  attempts         Int       @default(0)
+  nextAttemptAt    DateTime?
+  lastError        String?
+  processedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model HcmCorpusEmployee {
+  id           String   @id
+  displayName  String
+  email        String
+  departmentId String
+  managerId    String?
+  rawPayload   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model HcmCorpusDepartment {
+  id         String   @id
+  name       String
+  headcount  Int?
+  rawPayload String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}

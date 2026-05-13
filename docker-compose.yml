@@ -1,0 +1,82 @@
+services:
+  hcm-mock:
+    build:
+      context: .
+      dockerfile: apps/hcm-mock/Dockerfile
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3001/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    environment:
+      DATABASE_URL: file:/data/app.db
+      HCM_MOCK_URL: http://hcm-mock:3001
+      HCM_REQUEST_TIMEOUT_MS: "5000"
+      OUTBOX_BASE_DELAY_MS: "1000"
+      OUTBOX_MAX_BACKOFF_MS: "900000"
+      OUTBOX_MAX_JITTER_MS: "500"
+    volumes:
+      - sqlite_data:/data
+    ports:
+      - "3002:3002"
+    depends_on:
+      hcm-mock:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3002/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: file:/data/app.db
+      HCM_MOCK_URL: http://hcm-mock:3001
+    volumes:
+      - sqlite_data:/data
+    ports:
+      - "3000:3000"
+    depends_on:
+      worker:
+        condition: service_healthy
+      hcm-mock:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3000/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  sqlite_data: {}

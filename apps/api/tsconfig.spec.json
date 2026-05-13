@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "./dist-spec",
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@worker/*": ["../worker/src/*"]
+    },
+    "types": ["jest", "node"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

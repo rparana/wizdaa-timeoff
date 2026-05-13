@@ -1,0 +1,11 @@
+node_modules
+dist
+.turbo
+.git
+*.md
+.env
+.env.*
+coverage
+**/*.db
+**/*.db-journal
+**/*.tsbuildinfo
